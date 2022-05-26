@@ -212,7 +212,9 @@ export default class Client {
         )
       );
     }
-    const dest = `${this.downloadDir}/the.xpi`;
+    const filename = "the.xpi"; // get the name from response.url
+    const dest = `${this.downloadDir}/${filename}`;
+    // this.logger.log(response.headers);
     return promisify(pipeline)(response.body, createWriteStream(dest));
   }
 
@@ -291,6 +293,24 @@ export default class Client {
       .then(this.getJson.bind(this))
       .then(getDetailUrl)
       .then(this.waitForApproval.bind(this, extractFileFromData))
+      .then(this.fetch.bind(this)) // download the xpi
+      .then(this.saveFile.bind(this));
+  }
+
+  downloadLatestVersion(addonId: string): Promise<Response> {
+    const parseForLatestVersion = (data: any): Promise<string> =>
+      new Promise((resolve, reject) => {
+        if (data.results.length > 0) {
+          resolve(data.results[0].file.url);
+        }
+        reject("No versions found");
+      });
+
+    const url = `${this.apiUrlPrefix}addons/addon/${addonId}/versions/?filter=all_with_unlisted`;
+
+    return this.fetch(url)
+      .then(this.getJson.bind(this))
+      .then(parseForLatestVersion)
       .then(this.fetch.bind(this)) // download the xpi
       .then(this.saveFile.bind(this));
   }
